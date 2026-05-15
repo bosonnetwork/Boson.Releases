@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-This repository is the official distribution hub for **Boson Network** binary packages. Each GitHub Release here contains the pre-built, ready-to-run artifacts produced by the [Boson](https://github.com/bosonnetwork/Boson.Java) source tree for every supported platform and architecture.
+This repository is the official distribution hub for **Boson Network** binary packages. Each GitHub Release here contains the pre-built, ready-to-run artifacts produced by the [Boson](https://github.com/bosonnetwork) source tree for every supported platform and architecture.
 
 ---
 
