@@ -3,6 +3,52 @@
 All notable changes to the Boson Network binary distribution are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 3.1.0 (2026-08-23)
+
+First general availability release, concluding the Community Technical Preview series.
+
+Note: The configuration syntax was reworked in this release and is not backward compatible with 3.0.x. Existing configuration files must be regenerated or updated before upgrading.
+
+### Added
+
+- Add per-node announce results, reporting which nodes accepted a value or peer and why others refused.
+- Add Kademlia tuning options to node configuration, including lookup, routing table, and bootstrap parameters.
+- Add a common rate limiting API across the Director and Layer-2 services, with support for per-second through per-day limits.
+- Add service-wide, per-address, per-user, and concurrency-based rate limiting to Web Gateway, Ion Store, and Photon Messaging.
+- Add per-API request budgets, costs, and concurrency limits to Director APIs.
+- Add plan-based service quotas for Ion Store, Photon Messaging, and Active Proxy.
+- Add dedicated client exceptions for gateway errors, rate limits, and channel limits, including retry hints where applicable.
+- Add security considerations to the protocol specification.
+
+### Changed
+
+- Harden the DHT against malformed and abusive traffic with bounded packet decoding, routing-table contributions, lookup responses, and improved abuse throttling.
+- Improve DHT lookup and announce tasks with bounded runtime and effort, more accurate timeout and loss tracking, and proper cancellation of outstanding calls.
+- Improve bootstrap reliability with warm starts, bounded bucket fan-out, faster handling of unavailable bootstrap nodes, and reduced interference with application lookups.
+- Move per-packet cryptographic operations off the event loop to improve throughput under load.
+- Unify service configuration across the Director and Layer-2 services and finalize the configuration syntax.
+- Rename plan features to match the corresponding service terminology.
+- Retune default user limits, rate limits, and concurrency settings across the Director and services.
+- Remove internal DHT instances from the public API and route all sends through the node.
+- Improve Web Gateway re-announcement of persistent records with bounded concurrency and lag warnings.
+- Restrict key-bearing configuration files to their owning account.
+- Improve super node setup and administration, including public-host-based CLI configuration and DNS resolution overrides.
+- Remove bundled logging configuration from library JARs so applications can manage their own logging.
+- Improve build scripts and platform packaging for a more reliable build process.
+
+### Fixed
+
+- Fix RPC socket binding to the wrong protocol family, preventing IPv6 nodes from starting.
+- Fix messages and payloads that could exceed a single datagram.
+- Fix conditions that could permanently block bootstrapping.
+- Fix routing-table maintenance and warm-start sweeps skipping entries that required refresh.
+- Fix task dispatch during shutdown and a race involving the local store.
+- Fix bootstrap node identity being overwritten or accessed by other accounts.
+- Fix stale channel membership after invalidation or early removal notifications in the messaging client.
+- Fix incorrect default values when parsing Ion Store configuration.
+- Fix configuration file permissions applied by the Debian post-install script.
+- Fix various stability, test, documentation, and other minor issues.
+
 ## 3.0.2 (2026-07-27)
 
 Community Technical Preview 3.
