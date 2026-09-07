@@ -3,6 +3,40 @@
 All notable changes to the Boson Network binary distribution are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 3.1.1 (2026-09-03)
+
+Maintenance release focused on super node deployment: running services behind a TLS-terminating reverse proxy, name access without a DNS update per connection, and a default home page for the node.
+
+Note: The Ion Store database schema changed in this release. An Ion Store database created by 3.1.0 will fail to start under 3.1.1 with a schema version mismatch and has to be recreated.
+
+### Added
+
+- Add a default super node home page, served at the root, reporting node identity, status, and hosted services.
+- Add name access to Active Proxy through a reverse proxy and wildcard DNS, removing the DNS update per connection.
+- Add RFC 2136 DNS UPDATE support to the Active Proxy dynamic DNS provider.
+- Add an independently configurable listen interface and announced public endpoint for the Photon Messaging federation interface.
+- Add service-defined extra values to service configuration, announced alongside the service endpoint.
+- Add a tool to reconcile the Ion Store blob directory against its database.
+- Add tunable heap size and file descriptor limits for the Boson service through `/etc/default/boson`.
+
+### Changed
+
+- Ship the public Boson Network bootstrap nodes as the default in the bootstrap and super node configuration templates.
+- Allow a service to announce a public endpoint whose scheme differs from its own listener, so services can serve plaintext behind a TLS-terminating reverse proxy.
+- Serve the super node status without authentication, so the node home page can report availability to any visitor.
+- Merge the Ion Store local and cache stores into a single store separated by origin, so cached objects are never served as locally hosted content.
+- Report the cause when the admin CLI reaches a Director that is not serving TLS on the configured URL.
+- Redesign the User Portal and Admin Dashboard sign-in pages to match the node home page.
+- Declare service dependencies and startup order for the Boson systemd service.
+
+### Fixed
+
+- Fix Web Gateway returning HTTP 500 instead of the resolved status when a failure carries no message.
+- Fix the Web Gateway client ignoring the path prefix in the gateway URL when building requests.
+- Fix Active Proxy client sessions cancelling their periodic check on a successful start, which produced duplicate and stale peer announcements.
+- Fix the service base path derivation in the Ion Store client.
+- Fix various stability, test, documentation, and other minor issues.
+
 ## 3.1.0 (2026-08-23)
 
 First general availability release, concluding the Community Technical Preview series.
