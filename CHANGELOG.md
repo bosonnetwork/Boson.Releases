@@ -3,6 +3,60 @@
 All notable changes to the Boson Network binary distribution are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 3.1.2 (2026-09-27)
+
+Maintenance release focused on tooling and distribution: the command line tools are now Java and ship on every platform, release assets carry a signed checksum file, an existing super node can be updated in place, and a node learns its own public endpoint from the network.
+
+Note: The command line tools replace the earlier Rust tools of the same names. On Debian systems `boson-cli`, `boson-director-cli` and `boson-node` are all on the path after installing the packages, and `boson-node` replaces the DHT runner and its shell.
+
+Note: The admin CLI configuration key `rootUserKey` is renamed to `privateKey`. The Debian packages migrate `/etc/boson/director-cli.yaml` on upgrade; elsewhere run the setup wizard with `--migrate` to bring an existing file up to date.
+
+### Added
+
+- Add new Java command line tools, available on every supported platform: `boson-cli` for users and application developers, `boson-director-cli` for operators, and `boson-node` to run and explore a DHT node.
+- Add super node service access to `boson-cli`, which finds the Ion Store, DHT and Active Proxy of a node through its Director.
+- Add a Director client library covering the full client API, OAuth sign-in, device pairing and the admin API, published to Maven Central.
+- Add public endpoint discovery to the DHT: a node learns its endpoint from what replying nodes observe, announces a change with a self-lookup, and gives up an endpoint that has gone stale.
+- Add a signed `SHA256SUMS` file to the release assets, verified by the super node installer before any checksum is trusted.
+- Add in-place super node updates to the deployment tool with `--update`.
+- Add Debian support to the super node installer, alongside Ubuntu.
+- Add a portable distribution archive that bundles no Java runtime, for hosts that already have Java 17 or later.
+- Add user blocking to the messaging client, dropping friend requests and direct messages from blocked users.
+- Add a contact synchronization RPC to the messaging service, so a device can fetch the changes it missed.
+- Add a `Date` header to every Director, service and federation answer, so a client with a skewed clock can correct itself and sign its own access tokens.
+- Add public endpoint detection to the super node setup wizard, falling back to the local address with a warning.
+- Add retrieval by `ions://` address to the Ion Store client, served locally when the address names the bound service.
+- Add a side-effect-free registration options endpoint and a public admin identity endpoint to the Director.
+
+### Changed
+
+- Publish the Director and the four Layer-2 services to Maven Central with javadoc, and keep the distribution packages and aggregator poms out of it.
+- Rename the Web Gateway client artifact from `higgs-java` to `boson-higgs`, and manage the Ion Store and Director client versions in the Boson bill of materials.
+- Return `CompletableFuture` from every client library API, keeping the Vert.x context handling internal.
+- Build all four platform packages from a single host, and fall back to a cached JDK when Adoptium is unreachable.
+- Leave the choice of Netty native transport to the application: the libraries and services no longer carry native transport dependencies.
+- Bring the Debian maintainer scripts and the bootstrap package's unit into line with Debian Policy and with the super node package.
+- Advertise Active Proxy session endpoints at the node's public address rather than its bind address.
+- Take the service endpoint and upstream as URIs in the Active Proxy client configuration, and remove its standalone launcher in favour of `boson-cli`.
+- Apply friend request rules consistently across the messaging service and client, and date a received request by both its send and arrival time.
+- Bind the node configuration templates to the local address, and require `peer.endpoint` for a wildcard Active Proxy host.
+- Use the official Boson mark across the node home page, the User Portal and the Admin Dashboard.
+- Refuse to start on Java older than 17 when no runtime is bundled, rather than failing later.
+
+### Fixed
+
+- Fix a request body being lost while the Ion Store service resolved the caller's plan, which stored a truncated object.
+- Fix contact synchronization losing changes when a device reconnected with a backlog, and stop messages sent in the same millisecond from sharing an id.
+- Fix dead routing table entries surviving when no replacement was available.
+- Fix the inbound packet size floor and the reading of the transaction id as an unsigned value on the wire.
+- Fix Active Proxy packet padding that could overflow its length field, and endpoints advertised with the wrong scheme.
+- Fix admin API list ordering, stale plan data, avatar replacement and malformed input answered with HTTP 500.
+- Fix a refused avatar upload and an aborted remote fetch leaving state behind in the Director.
+- Fix a connection left open when an Ion Store upload or federated fetch was refused, and report a ciphertext that does not decrypt as a decryption error.
+- Fix the Admin Dashboard flashing before the theme and session were resolved.
+- Fix the application lock silently releasing a lock already held by the same process.
+- Fix various stability, test, documentation, and other minor issues.
+
 ## 3.1.1 (2026-09-03)
 
 Maintenance release focused on super node deployment: running services behind a TLS-terminating reverse proxy, name access without a DNS update per connection, and a default home page for the node.
