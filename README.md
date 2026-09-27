@@ -8,37 +8,15 @@ This repository is the official distribution hub for **Boson Network** binary pa
 
 ## What Is Boson Network?
 
-Boson Network is a decentralized peer-to-peer framework built on a secure Kademlia DHT. Every node and user is identified by an Ed25519 public key — no central registries, no usernames, no certificate authorities.
+Boson Network is a decentralized peer-to-peer framework built on a secure Kademlia DHT. Every node and user is identified by an Ed25519 public key - no central registries, no usernames, no certificate authorities.
 
 The platform consists of:
 
-- **KadNode** — a Kademlia DHT for peer discovery, mutable/immutable value storage, and service registration.
-- **Layer-2 Services** — WebGateway (HTTPS/Light Node API), Photon Messaging (MQTTS), Ion Store (object storage), Active Proxy (TCP NAT traversal).
-- **Boson Director** — the super node supervisor managing the DHT and all services, with Client, Admin, and Federation HTTP APIs.
-- **Client Libraries** — HiggsNode (Light Node), Messaging Client, Active Proxy Client.
-- **`boson-director-cli`** — a native Rust CLI for the Director API.
-
----
-
-## Packages
-
-Each release provides the following artifacts:
-
-| Platform | Architecture | Package | Type |
-|---|---|---|---|
-| macOS | Apple Silicon (arm64) | `boson-<v>-macos-aarch64.zip` | ZIP |
-| macOS | Intel (x86_64) | `boson-<v>-macos-x86_64.zip` | ZIP |
-| Linux | x86_64 | `boson-<v>-linux-x86_64.zip` | ZIP |
-| Linux | x86_64 | `boson-<v>-amd64.deb` | Debian package — super node |
-| Linux | x86_64 | `boson-bootstrap-<v>-amd64.deb` | Debian package — DHT bootstrap node |
-| Linux | aarch64 (arm64) | `boson-<v>-linux-aarch64.zip` | ZIP |
-| Linux | aarch64 (arm64) | `boson-<v>-arm64.deb` | Debian package — super node |
-| Linux | aarch64 (arm64) | `boson-bootstrap-<v>-arm64.deb` | Debian package — DHT bootstrap node |
-| Windows | x86_64 | `boson-<v>-windows-x86_64.zip` | ZIP |
-
-All ZIP archives include a bundled minimal JRE built with `jlink` — no system Java installation is required.
-
-The **bootstrap** DEB is a lightweight DHT-only package for running seed/discovery nodes without any layer-2 services.
+- **Boson DHT** - a Kademlia DHT for peer discovery, mutable/immutable value storage, and service registration.
+- **Layer-2 Services** - WebGateway (HTTPS/Light Node API), Photon Messaging (MQTTS), Ion Store (object storage), Active Proxy (TCP NAT traversal).
+- **Boson Director** - the super node supervisor managing the DHT and all services, with Client, Admin, and Federation HTTP APIs.
+- **Client Libraries** - HiggsNode (Light Node), Messaging Client, Ion Store Client, Active Proxy Client, Director Client.
+- **Command line tools** - `boson-cli` for users and application developers, `boson-director-cli` for node operators, and `boson-node` to run and explore a DHT node.
 
 ---
 
@@ -51,6 +29,8 @@ Two ways in, and the right one depends on whether the node has a domain name.
 | [Without a domain name](#personal-or-small-super-node-without-a-domain-name) | trying Boson, a personal node, a DHT bootstrap node | an IP address and port |
 | [With a domain name](#production-super-node-with-a-domain-name) | a public super node other people rely on | `https://your.domain/`, named Active Proxy sessions, a real TLS certificate |
 
+Whichever you choose, you can [verify what you downloaded](#verifying-a-download) first.
+
 ---
 
 ### Personal or Small Super Node Without a Domain Name
@@ -61,13 +41,8 @@ has no TLS certificate of its own and no name, so clients reach it by address.
 #### Debian / Ubuntu (recommended for Linux servers)
 
 Ubuntu LTS is what we test and recommend, but the `.deb` packages install on
-Debian and other Debian-based distributions just as well.
-
-Install the system dependency:
-
-```bash
-sudo apt-get install libsodium23
-```
+Debian and other Debian-based distributions just as well. They need no system
+dependencies: everything, including the Java runtime, is inside the package.
 
 Install the super node package:
 
@@ -81,6 +56,9 @@ configuration, and starts the service via systemd:
 ```bash
 sudo systemctl status boson
 ```
+
+It also puts the command line tools on the path - `boson-cli`,
+`boson-director-cli` and `boson-node`.
 
 For the bootstrap (DHT-only) node:
 
@@ -102,6 +80,10 @@ cd boson-<version>
 
 On first run, an interactive Setup wizard starts automatically if no
 configuration file exists at `~/.config/boson/director.yaml`.
+
+Alongside `boson.sh`, the archive carries `boson-cli.sh`,
+`boson-director-cli.sh` and `boson-node.sh`, plus a `.cmd` launcher for each on
+Windows.
 
 ---
 
@@ -165,7 +147,7 @@ Everything else follows from it:
 
 | Name | Serves |
 |---|---|
-| `node.example.com` | APIs, admin dashboard, user portal - and the endpoints announced into the DHT, `mqtts://…:9083` and `tcp://…:9090` |
+| `node.example.com` | APIs, admin dashboard, user portal - and the endpoints announced into the DHT, `mqtts://...:9083` and `tcp://...:9090` |
 | `www.node.example.com` | the node's home page. Reserved - the setup will not accept it as the node's own name |
 | `*.node.example.com` | Active Proxy sessions, one name per connected device |
 
@@ -225,9 +207,13 @@ Fix the cause and continue with `--resume`; nothing after it has run.
 The tool stays on the host:
 
 ```bash
+sudo /usr/local/lib/boson-setup/setup.sh --update     # update the node to the latest release
 sudo /usr/local/lib/boson-setup/scripts/healthcheck.sh   # verify at any time
 sudo /usr/local/lib/boson-setup/setup.sh --resume        # continue or re-run
 ```
+
+`--update` updates the tool itself, then the node's packages, verifying each
+download against the release key before it installs anything.
 
 Answers, logs and backups live in `/var/lib/boson-setup/`, the node's
 configuration in `/etc/boson/`. Back up `/etc/boson` - it holds the private keys
@@ -238,18 +224,72 @@ The full deployment manual, including doing every step by hand, is
 
 ---
 
+## Packages
+
+Each release provides the following artifacts:
+
+| Platform | Architecture | Package | Type |
+|---|---|---|---|
+| macOS | Apple Silicon (arm64) | `boson-<v>-macos-aarch64.zip` | ZIP |
+| Linux | x86_64 | `boson-<v>-linux-x86_64.zip` | ZIP |
+| Linux | x86_64 | `boson-<v>-amd64.deb` | Debian package - super node |
+| Linux | x86_64 | `boson-bootstrap-<v>-amd64.deb` | Debian package - DHT bootstrap node |
+| Linux | aarch64 (arm64) | `boson-<v>-linux-aarch64.zip` | ZIP |
+| Linux | aarch64 (arm64) | `boson-<v>-arm64.deb` | Debian package - super node |
+| Linux | aarch64 (arm64) | `boson-bootstrap-<v>-arm64.deb` | Debian package - DHT bootstrap node |
+| Windows | x86_64 | `boson-<v>-windows-x86_64.zip` | ZIP |
+| Any | any | `boson-<v>-any.zip` | Portable ZIP, no bundled Java runtime |
+
+The platform ZIP archives and the Debian packages include a minimal Java runtime
+built with `jlink` - no system Java installation is required.
+
+The **portable** ZIP bundles no runtime and needs Java 17 or later on the host.
+It is the archive to use on a platform with no package of its own, such as macOS
+on Intel.
+
+The **bootstrap** DEB is a lightweight DHT-only package for running seed/discovery nodes without any layer-2 services.
+
+Each release also carries the super node setup tool - `install-super-node.sh`
+and `super-node-setup.tar.gz` - and the checksums below.
+
+### Verifying a download
+
+Every release from 3.1.2 on publishes `SHA256SUMS`, covering all of its assets,
+and `SHA256SUMS.asc`, a signature over it by the project's release key:
+
+```text
+BosonNetwork <support@bosonnetwork.io>
+5A01 2C93 0EED B923 B7AB  4739 A13B 99C0 C4AA 495A
+```
+
+The key is on keys.openpgp.org, and its fingerprint is published on
+bosonnetwork.io. Verify the signature, then the package:
+
+```bash
+gpg --keyserver hkps://keys.openpgp.org --recv-keys 5A012C930EEDB923B7AB4739A13B99C0C4AA495A
+gpg --verify SHA256SUMS.asc SHA256SUMS            # "Good signature from BosonNetwork"
+sha256sum --check --ignore-missing SHA256SUMS     # boson-<v>-amd64.deb: OK
+```
+
+The super node setup tool does this for you, on installation and on every
+update, with a copy of the key it carries.
+
+---
+
 ## Source
 
 The Boson Network codebase is being progressively open-sourced:
 
 **Already open source:**
-- `boson-core` — Kademlia DHT node and DHT Shell
-- Client libraries — HiggsNode, Messaging Client, Active Proxy Client
+
+- [Boson.Core](https://github.com/bosonnetwork/Boson.Core) - common APIs, and the Kademlia DHT node
+- [Boson.Tools](https://github.com/bosonnetwork/Boson.Tools) - the `boson-cli`, `boson-director-cli` and `boson-node` command line tools
+- Client libraries - [WebGateway (Higgs)](https://github.com/bosonnetwork/Boson.WebGateway.Client), [Messaging](https://github.com/bosonnetwork/Boson.Messaging.Client), [Ion Store](https://github.com/bosonnetwork/Boson.IonStore.Client), [Active Proxy](https://github.com/bosonnetwork/Boson.ActiveProxy.Client), [Director](https://github.com/bosonnetwork/Boson.Director.Client)
 
 **Not yet open source** (planned):
 
-- Layer-2 services — WebGateway, Photon Messaging, Ion Store, Active Proxy
-- Boson Director — super node supervisor
+- Layer-2 services - WebGateway, Photon Messaging, Ion Store, Active Proxy
+- Boson Director - super node supervisor
 
 ---
 
