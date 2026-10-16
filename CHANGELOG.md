@@ -3,6 +3,47 @@
 All notable changes to the Boson Network binary distribution are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 3.2.0 (2026-10-16)
+
+Feature release focused on accounts and sign-in: passkeys, passphrase recovery, the Boson Identity app, and sign-in for community apps. Also adds subscriptions to the DHT, moves to Vert.x 5.1, and makes super node updates safer.
+
+Note: The Director database schema changes in this release and is migrated automatically on the first start of 3.2.0. A node on 3.1.x cannot go back to it once migrated, so back up the database before upgrading: the node's SQLite database, or a `pg_dump` of PostgreSQL. The super node setup tool's `--update` dumps the database for you before it installs a release that migrates it.
+
+Note: OAuth sign-ins now return only to the node's own site and to the apps listed in `oauth.allowedRedirects`, which defaults to the Boson Identity and Photon app links. On a node with OAuth configured, the Debian packages add those two links and `communityApps: true` to `/etc/boson/director.yaml` on upgrade, keeping any entries already listed; elsewhere run the setup wizard with `--migrate`.
+
+### Added
+
+- Add subscriptions to DHT values and peer records, kept alive through NAT rebinding and lapsed mappings and offered by nodes that support them (Orca 2 and later), with `subscribe` and `unsubscribe` commands in the `boson-node` shell.
+- Add passkey sign-in to the Director, the User Portal and the Admin Dashboard.
+- Add passphrase recovery with recovery codes, a passkey, or a linked OAuth account, never with the user key alone.
+- Add sign-in for community apps that are not listed in the node's configuration, using an OAuth client ID metadata document, PKCE, and a consent page on the node; such apps get client scope only.
+- Add support for the Boson Identity app: web sign-in through the app, device approval that uses the user key only when asked, and administrator enrollment by QR code with `boson-director-cli user enroll-admin`.
+- Add a security log of account events, kept for 90 days or each user's newest 200 events.
+- Add device rename and the management of linked sign-ins.
+- Add a profile revision, so that a profile or avatar change made meanwhile on another device is detected rather than overwritten.
+- Add database migration detection to the super node setup tool's `--update`, which dumps the database before a release that migrates it and prints the restore commands if the update fails afterwards; `--backup-database` and `--no-backup-database` override when the dump is taken.
+
+### Changed
+
+- Upgrade to Vert.x 5.1.10, Netty 4.2.19 and Jackson 2.21.7.
+- Merge `Resolver` into `Registry` in the Boson API: publish, look up and unpublish cards with a choice of version, with a built-in bounded card cache in place of the Caffeine and persistent resolution caches.
+- Hand web pages the OAuth sign-in token in the URL fragment.
+- Require the passphrase to link or unlink an OAuth sign-in, slow down repeated wrong passphrases, and check the strength of a new passphrase, with a minimum length of 8.
+- Sign direct device registration with the user key, and make finishing a registration repeatable so that a lost approval answer can be fetched again.
+- Publish messaging channel cards when a channel is created, renamed or changes its announcement rather than hourly, and unpublish them when announcing stops or the channel is deleted.
+- List sign-in methods on the User Portal and the Admin Dashboard as passkey, Boson Identity, then OAuth providers.
+
+### Fixed
+
+- Fix request bodies being lost when a Web Gateway store or announcement, or an Ion Store upload, waited for the Director's plan check.
+- Fix a user record cached by the Director moving a hosted service onto the Director's thread, which lost request bodies.
+- Fix the MQTT and federation servers of Photon Messaging publishing to sessions from each other's thread.
+- Fix the client libraries resolving host names on the caller's thread under Vert.x 5.1, which Android refuses on its main thread.
+- Fix a race in the messaging client loading a channel's members.
+- Fix the home node profile lookup for messaging recipients.
+- Fix the device admin flag in Director JSON, and duplicate and clashing paths in the Director OpenAPI specification.
+- Fix various stability, test, documentation, and other minor issues.
+
 ## 3.1.2 (2026-09-27)
 
 Maintenance release focused on tooling and distribution: the command line tools are now Java and ship on every platform, release assets carry a signed checksum file, an existing super node can be updated in place, and a node learns its own public endpoint from the network.

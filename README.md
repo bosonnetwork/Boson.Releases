@@ -60,6 +60,11 @@ sudo systemctl status boson
 It also puts the command line tools on the path - `boson-cli`,
 `boson-director-cli` and `boson-node`.
 
+To upgrade, install the newer package the same way; the configuration in
+`/etc/boson` is kept. When the [CHANGELOG](CHANGELOG.md) says a release changes
+the database schema, back up the database first: the migration runs on the first
+start of the new version, and the old one cannot run over it.
+
 For the bootstrap (DHT-only) node:
 
 ```bash
@@ -213,7 +218,11 @@ sudo /usr/local/lib/boson-setup/setup.sh --resume        # continue or re-run
 ```
 
 `--update` updates the tool itself, then the node's packages, verifying each
-download against the release key before it installs anything.
+download against the release key before it installs anything. When the new
+release migrates the database, it dumps the database first, and if the update
+fails after the migration it prints the commands that restore that dump. From
+setup tool 3.2.0, `--backup-database` takes the dump on every update and
+`--no-backup-database` never takes it.
 
 Answers, logs and backups live in `/var/lib/boson-setup/`, the node's
 configuration in `/etc/boson/`. Back up `/etc/boson` - it holds the private keys
