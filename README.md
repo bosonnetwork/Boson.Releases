@@ -60,10 +60,7 @@ sudo systemctl status boson
 It also puts the command line tools on the path - `boson-cli`,
 `boson-director-cli` and `boson-node`.
 
-To upgrade, install the newer package the same way; the configuration in
-`/etc/boson` is kept. When the [CHANGELOG](CHANGELOG.md) says a release changes
-the database schema, back up the database first: the migration runs on the first
-start of the new version, and the old one cannot run over it.
+To upgrade an existing node, see [Upgrading](#upgrading) below.
 
 For the bootstrap (DHT-only) node:
 
@@ -217,12 +214,8 @@ sudo /usr/local/lib/boson-setup/scripts/healthcheck.sh   # verify at any time
 sudo /usr/local/lib/boson-setup/setup.sh --resume        # continue or re-run
 ```
 
-`--update` updates the tool itself, then the node's packages, verifying each
-download against the release key before it installs anything. When the new
-release migrates the database, it dumps the database first, and if the update
-fails after the migration it prints the commands that restore that dump. From
-setup tool 3.2.0, `--backup-database` takes the dump on every update and
-`--no-backup-database` never takes it.
+What `--update` does, and the rest of the upgrade paths, are under
+[Upgrading](#upgrading).
 
 Answers, logs and backups live in `/var/lib/boson-setup/`, the node's
 configuration in `/etc/boson/`. Back up `/etc/boson` - it holds the private keys
@@ -230,6 +223,94 @@ that are this node's identity on the network and cannot be regenerated.
 
 The full deployment manual, including doing every step by hand, is
 `/usr/local/lib/boson-setup/README.md`.
+
+---
+
+## Upgrading
+
+An upgrade keeps `/etc/boson` and `/var/lib/boson`, does not run the setup wizard
+again, and restarts the node. Two things decide whether it needs more than that,
+and the [CHANGELOG](CHANGELOG.md) says so for each release:
+
+- **a database migration**, which runs on the first start of the new version and
+  cannot be undone - the older version will not read the migrated database;
+- **a configuration change**, which the Debian packages apply for you and other
+  installations do not.
+
+**3.2.0 does both.** Back up the database before you start, and read
+[Upgrading to 3.2.0](https://docs.bosonnetwork.io/operate-a-node/operations#upgrading-to-320)
+for the ordered steps.
+
+### With the setup tool
+
+A node installed with the public super node setup updates itself, including its
+nginx and database configuration:
+
+```bash
+sudo /usr/local/lib/boson-setup/setup.sh --update
+sudo /usr/local/lib/boson-setup/scripts/healthcheck.sh
+```
+
+`--update` updates the tool first, verifies every download against the release
+key, and dumps the database before a release that migrates it - printing the
+restore commands if the update fails after that point. `--backup-database` takes
+the dump on every update, `--no-backup-database` never.
+
+### With the DEB package
+
+```bash
+# Back up the database first when the release migrates it
+sudo cp /var/lib/boson/director.db /var/lib/boson/director.db.pre-<version>
+# ...or, on PostgreSQL
+sudo -u postgres pg_dump boson > boson-pre-<version>.sql
+
+sudo apt install ./boson-<version>-$(dpkg --print-architecture).deb
+sudo systemctl status boson
+curl -k https://localhost:9000/api/v1/client/node
+```
+
+The status response carries the running `version`. The package brings
+`/etc/boson/director.yaml` forward when a release changed its format.
+
+The bootstrap node is the same:
+
+```bash
+sudo apt install ./boson-bootstrap-<version>-$(dpkg --print-architecture).deb
+```
+
+> **Upgrading from a snapshot build skips the configuration migration.** `dpkg`
+> sorts `3.2.0-SNAPSHOT` after `3.2.0`, so the package decides no migration is
+> due. Run it by hand:
+>
+> ```bash
+> sudo /usr/lib/boson/jre/bin/java -cp "/usr/lib/boson/lib/*" \
+>     io.bosonnetwork.director.Setup --migrate --file /etc/boson/director.yaml
+> ```
+
+### With the ZIP archive
+
+The configuration and data live outside the extracted directory, in
+`~/.config/boson` and `~/.local/share/boson`, so they survive. Extracting an
+archive runs no installer, though, so nothing migrates the configuration for
+you: stop the node, extract the new archive, and migrate it yourself.
+
+```bash
+unzip boson-<version>-<platform>.zip
+cd boson-<version>
+./jre/bin/java -cp "lib/*" io.bosonnetwork.director.Setup --migrate --file ~/.config/boson/director.yaml
+./bin/boson.sh
+```
+
+### If it does not come up
+
+Check the migration before anything else:
+
+```bash
+sudo journalctl -u boson -n 100 --no-pager
+```
+
+The way back from a failed migration is to restore the dump and reinstall the
+previous package - not to edit the schema.
 
 ---
 
