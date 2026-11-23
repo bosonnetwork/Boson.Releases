@@ -3,6 +3,47 @@
 All notable changes to the Boson Network binary distribution are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 3.2.1 (2026-11-23)
+
+Feature release adding super-node federation, the built-in TURN relay service, sender-visible Photon Messaging delivery receipts, and Web Gateway DHT subscriptions over Server-Sent Events. Also introduces staged, versioned configuration migrations, client lifecycle cleanup across hosted services, and monotonic elapsed-time tracking.
+
+### Added
+
+- Add signed super-node descriptors and attested service discovery, with open, mutual and allowlist federation modes, purpose-bound relationship proposals, operator admission and bounded proposals on demand (`federation.proposeOnDemand`).
+- Add federation Nodes, Proposals, Activity and Hosts administration, including searches, proposal review, relationship actions and distinct-node verification observations by IPv4 address or IPv6 `/64`. Failed checks count separately and can overlap retained verified nodes. The Java Admin client (`boson-director-client`) and `boson-director-cli` expose the federation controls; Boson Identity integrates these APIs in its separately released Android app.
+- Add the built-in TURN relay service (`boson-turn`, `io.bosonnetwork.turn`) bundling a pinned `coturn` binary managed by the Director, with an authenticated credential API (default TCP `9078`), STUN/TURN relay (`3478/udp`, `3478/tcp`), NAT/IPv6/private-peer hardening, built-in plan support, `Setup --add-service turn`, `NodeStatus` reporting, `boson-cli turn credentials`, and full setup/update/healthcheck support in the super node setup tool.
+- Add sender-visible Photon Messaging delivery receipts through existing home-peer session notifications and offline storage. The Java messaging client persists outcomes and handles receipts arriving before outbox synchronization; the separately released Photon app displays outcomes and limits retry to failed local submissions.
+- Add DHT subscriptions over Server-Sent Events (SSE) to Web Gateway (one stream per device, with configurable `subscriptions` limits and a `maxSubscriptions` plan feature) and wire `subscribeValue` / `subscribePeer` support into `HiggsNode`.
+- Add destination-host verification budgets and shared failed-work backoff with limited recovery, alongside source request limits, per-node negative caching and pinned transport. Configure HTTP source grouping independently with `limits.address.rateLimit.ipv6PrefixBits`.
+- Add typed client change notifications (`ClientContext`) and subscription expiry handling in the Director, allowing Web Gateway, Active Proxy and Photon Messaging to clean up resources and refresh session limits when clients are removed or plans change.
+
+### Changed
+
+- Remove legacy federation v1 and deprecate service methods on user cards, keeping cards profile-only and marking channel profiles explicitly.
+- Attribute cross-peer messaging batch outcomes to individual persistent request IDs while retaining batching and request order. Persist authored-message correlation with queued requests, stop active drains at admission-change batch boundaries, and attempt expiry receipts before deleting tracked requests.
+- Keep Ion Store cross-node reads independent of bilateral relationships; blacklist and disabled-federation decisions still prevent access (`403`), while pending peers answer `503`.
+- Switch elapsed-time measurements across core, Director, Layer-2 services and clients to `MonotonicClock` so wall-clock jumps do not skew timers, TTLs or descriptor re-signing.
+- Log the stack version and Director public endpoint at startup (warning when unreachable), inherit the root log level for `coturn` by default, verify bundled `coturn` and DEB `jspawnhelper` executable permissions during packaging, and remove legacy configuration migration advice from `boson-director-cli`.
+
+### Fixed
+
+- Fix DHT subscription rehoming, NAT recovery races, RPC call cancellation, and outbound throttle refunds on packet encode failure.
+- Fix IPv6 prefix masking in rate-limiter address grouping, proxy placeholder address handling in rate limiting, NAT64 bogon classification, and pinned IPv6 federation requests.
+- Report explicit unknown recipients accurately for immediate and queued messaging deliveries, and invalidate stale recipient routes on a best-effort basis.
+- Preserve stored receipt information across message loading and updates, order outbox echoes before delivery-generated receipts, await all batch delivery receipts on callback failure, and preserve offline channel-leave callbacks across contact synchronization.
+- Fix Active Proxy client reauthentication after the final proxy connection closes.
+- Fix resource cleanup on startup failure in Ion Store and preserve unrelated timers when Photon Messaging startup fails.
+- Fix shell subcommands in the CLI tools advertising `--version` instead of `--help` only.
+
+### Upgrade notes
+
+- Super-node DEB upgrades verify that `boson.service` is stopped and apply pending configuration migrations from the last configured package version. Preserve a pre-upgrade configuration backup for direct DEB installs. `setup.sh --update` takes and reuses that backup automatically and restores it if the package rolls back.
+- Legacy federation configurations with `defaultProposalAction: decline` and no explicit mode migrate to `mutual`. Existing explicit modes and other operator settings are preserved. Upgrades from before 3.2.1 add TURN when the relay binary is present and its ports are available (or save `05_io.bosonnetwork.turn.yaml.disabled` on port conflict). Existing TURN instances and opt-outs are preserved.
+- Director (schema `3`) and Photon Messaging (schema `2`) databases migrate on startup. Back up SQLite files or PostgreSQL databases before upgrading; restoring a backup is required to return to the older schema. `setup.sh --update` dumps PostgreSQL automatically before migrating.
+- This is the first federation-enabled release. The federation batch protocol uses request IDs and ordered per-request responses; deploy compatible federation peers together.
+- Applications implementing the Java messaging `MessageListener` must implement `onDeliveryReceipt`. `onSent` still means home-service acceptance; `DELIVERED` means recipient-service or remote channel-host acceptance, not device delivery or reading. `EXPIRED` means delivery was not confirmed before retries stopped.
+- Receipt notifications inherit session limits and expiry, and older clients may ignore them. They are not a permanent receipt journal or a guarantee of recovery on newly registered devices.
+
 ## 3.2.0 (2026-10-16)
 
 Feature release focused on accounts and sign-in: passkeys, passphrase recovery, the Boson Identity app, and sign-in for community apps. Also adds subscriptions to the DHT, moves to Vert.x 5.1, and makes super node updates safer.

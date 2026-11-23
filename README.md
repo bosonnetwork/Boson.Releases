@@ -278,26 +278,19 @@ The bootstrap node is the same:
 sudo apt install ./boson-bootstrap-<version>-$(dpkg --print-architecture).deb
 ```
 
-> **Upgrading from a snapshot build skips the configuration migration.** `dpkg`
-> sorts `3.2.0-SNAPSHOT` after `3.2.0`, so the package decides no migration is
-> due. Run it by hand:
->
-> ```bash
-> sudo /usr/lib/boson/jre/bin/java -cp "/usr/lib/boson/lib/*" \
->     io.bosonnetwork.director.Setup --migrate --file /etc/boson/director.yaml
-> ```
-
 ### With the ZIP archive
 
 The configuration and data live outside the extracted directory, in
 `~/.config/boson` and `~/.local/share/boson`, so they survive. Extracting an
 archive runs no installer, though, so nothing migrates the configuration for
-you: stop the node, extract the new archive, and migrate it yourself.
+you: stop the node, extract the new archive, and migrate it yourself with the
+version that last configured the node.
 
 ```bash
 unzip boson-<version>-<platform>.zip
 cd boson-<version>
-./jre/bin/java -cp "lib/*" io.bosonnetwork.director.Setup --migrate --file ~/.config/boson/director.yaml
+./jre/bin/java -cp "lib/*" io.bosonnetwork.director.Setup \
+    --home . --migrate --from-version <installed-version>
 ./bin/boson.sh
 ```
 
