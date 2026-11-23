@@ -2,382 +2,278 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-This repository is the official distribution hub for **Boson Network** binary packages. Each GitHub Release here contains the pre-built, ready-to-run artifacts produced by the [Boson](https://github.com/bosonnetwork) source tree for every supported platform and architecture.
+Official binary distribution hub for **Boson Network**. Each [GitHub Release](https://github.com/bosonnetwork/Boson.Releases/releases) publishes signed, ready-to-run packages, installers, and checksums for all supported platforms.
+
+**Quick links:** [Releases](https://github.com/bosonnetwork/Boson.Releases/releases) | [Changelog](CHANGELOG.md) | [Documentation](https://docs.bosonnetwork.io) | [Java SDK (Maven Central)](https://central.sonatype.com/namespace/io.bosonnetwork)
 
 ---
 
-## What Is Boson Network?
+## Overview
 
-Boson Network is a decentralized peer-to-peer framework built on a secure Kademlia DHT. Every node and user is identified by an Ed25519 public key - no central registries, no usernames, no certificate authorities.
+Boson Network is a decentralized peer-to-peer framework built on a Kademlia DHT where every node and user is identified by an Ed25519 key pair -- no central registries, usernames, or certificate authorities.
 
-The platform consists of:
+A super node release bundles:
 
-- **Boson DHT** - a Kademlia DHT for peer discovery, mutable/immutable value storage, and service registration.
-- **Layer-2 Services** - WebGateway (HTTPS/Light Node API), Photon Messaging (MQTTS), Ion Store (object storage), Active Proxy (TCP NAT traversal).
-- **Boson Director** - the super node supervisor managing the DHT and all services, with Client, Admin, and Federation HTTP APIs.
-- **Client Libraries** - HiggsNode (Light Node), Messaging Client, Ion Store Client, Active Proxy Client, Director Client.
-- **Command line tools** - `boson-cli` for users and application developers, `boson-director-cli` for node operators, and `boson-node` to run and explore a DHT node.
+| Component | Role |
+|---|---|
+| **Boson DHT** | Kademlia DHT for peer discovery, value storage, subscriptions, and service registration |
+| **Boson Director** | Super node supervisor exposing Client, Admin, and Federation HTTP APIs plus Web Portal / Admin Dashboard |
+| **Layer-2 Services** | WebGateway (HTTPS/SSE Light Node API), Photon Messaging (MQTTS + federation), Ion Store (object storage), Active Proxy (NAT traversal & named sessions), TURN Relay (bundled `coturn` STUN/TURN relay + credential API) |
+| **CLI Tools** | `boson-cli` (users/developers), `boson-director-cli` (operators), `boson-node` (DHT node & shell) |
 
 ---
 
-## Installation
+## Choose an Installation Path
 
-Two ways in, and the right one depends on whether the node has a domain name.
-
-| | Use | Reachable as |
+| Deployment | Best For | Method |
 |---|---|---|
-| [Without a domain name](#personal-or-small-super-node-without-a-domain-name) | trying Boson, a personal node, a DHT bootstrap node | an IP address and port |
-| [With a domain name](#production-super-node-with-a-domain-name) | a public super node other people rely on | `https://your.domain/`, named Active Proxy sessions, a real TLS certificate |
+| [Production Super Node](#production-super-node-ubuntu--debian-with-domain) | Public super node with a domain name, TLS, PostgreSQL, nginx, and named Active Proxy sessions | One-command setup tool (`install-super-node.sh`) |
+| [Standalone DEB](#debian--ubuntu-deb) | Personal/testing super node or DHT bootstrap node without a domain | `.deb` package (`boson` / `boson-bootstrap`) |
+| [Portable ZIP](#macos-linux-and-windows-zip) | Local development, macOS, Windows, or non-Debian Linux | `.zip` archive |
 
-Whichever you choose, you can [verify what you downloaded](#verifying-a-download) first.
-
----
-
-### Personal or Small Super Node Without a Domain Name
-
-The packages alone, configured by hand. The node runs and joins the DHT, but it
-has no TLS certificate of its own and no name, so clients reach it by address.
-
-#### Debian / Ubuntu (recommended for Linux servers)
-
-Ubuntu LTS is what we test and recommend, but the `.deb` packages install on
-Debian and other Debian-based distributions just as well. They need no system
-dependencies: everything, including the Java runtime, is inside the package.
-
-Install the super node package:
-
-```bash
-sudo dpkg -i boson-<version>-amd64.deb
-```
-
-The package installer creates a `boson` system user, generates an initial
-configuration, and starts the service via systemd:
-
-```bash
-sudo systemctl status boson
-```
-
-It also puts the command line tools on the path - `boson-cli`,
-`boson-director-cli` and `boson-node`.
-
-To upgrade an existing node, see [Upgrading](#upgrading) below.
-
-For the bootstrap (DHT-only) node:
-
-```bash
-sudo dpkg -i boson-bootstrap-<version>-amd64.deb
-sudo systemctl enable boson-bootstrap
-sudo systemctl start boson-bootstrap
-```
-
-#### ZIP (macOS, Windows, or portable Linux)
-
-Extract the archive and run the launcher:
-
-```bash
-unzip boson-<version>-macos-aarch64.zip
-cd boson-<version>
-./bin/boson.sh
-```
-
-On first run, an interactive Setup wizard starts automatically if no
-configuration file exists at `~/.config/boson/director.yaml`.
-
-Alongside `boson.sh`, the archive carries `boson-cli.sh`,
-`boson-director-cli.sh` and `boson-node.sh`, plus a `.cmd` launcher for each on
-Windows.
+All release downloads are signed with the project GPG key; see [Verifying Downloads](#verifying-downloads).
 
 ---
 
-### Production Super Node with a Domain Name
+## Production Super Node (Ubuntu / Debian with Domain)
 
-A public super node needs PostgreSQL, nginx, a wildcard TLS certificate, and DNS
-that resolves every Active Proxy session name. One command does all of it:
+The super node setup tool provisions PostgreSQL, nginx (with `njs`), wildcard TLS, DNS integration, UFW firewall rules, and `boson-super-node`, then runs a full-stack health check:
 
 ```bash
 curl -fsSL https://github.com/bosonnetwork/Boson.Releases/releases/latest/download/install-super-node.sh \
   | sudo bash
 ```
 
-It verifies its own download, installs to `/usr/local/lib/boson-setup`, asks a
-short series of questions, shows you everything it will do, and waits for you to
-confirm. About twenty minutes on a fresh server, ending with a health check
-across the whole stack.
+It verifies its own download signature, installs to `/usr/local/lib/boson-setup`, prompts for node details, displays a plan summary, and waits for confirmation.
 
-#### Before you start
+### Prerequisites
 
-**A server** - a fresh **Ubuntu LTS 24.04/26.04** or **Debian 12/13**, with
-`root` or `sudo`:
+- **OS:** Fresh **Ubuntu 24.04 / 26.04 LTS** or **Debian 12 / 13** (`amd64` or `arm64`) with `root` / `sudo`.
+- **Sizing:**
 
-| | Minimum | Recommended for a busy public node |
+  | Resource | Minimum | Recommended (Public Node) |
+  |---|---|---|
+  | vCPU | 2 | 4+ |
+  | RAM | 2 GB (4 GB recommended minimum) | 8 GB+ |
+  | Disk | 20 GB | 100 GB+ (plus storage for Ion Store) |
+
+- **Network:** A directly reachable static public IPv4 address (1:1 NAT is supported; port-rewriting NAT breaks DHT UDP).
+
+### Required Inbound Ports
+
+Open these ports in your cloud/provider firewall (and host firewall, or let the setup tool configure UFW):
+
+| Port | Protocol | Service |
 |---|---|---|
-| vCPU | 2 | 4, dedicated |
-| RAM | 2 GB | 8 GB |
-| Disk | 20 GB | 100 GB, plus a volume for Ion Store objects |
+| `80` | TCP | nginx (HTTP redirect & ACME challenges) |
+| `443` | TCP | nginx (APIs, consoles, TURN credential API, Active Proxy sessions) |
+| `9083` | TCP | Photon Messaging (MQTTS) |
+| `9090` | TCP | Active Proxy control |
+| `39001` | UDP | Boson DHT (cannot be proxied) |
+| `3478` | UDP / TCP | TURN relay (STUN/TURN) |
+| `49152-65535` | UDP | TURN relayed media |
+| `53` | TCP / UDP | PowerDNS (only when using `--dns powerdns`) |
 
-Below 4 GB of RAM or 20 GB of disk the setup asks you to confirm before
-continuing.
+### DNS and Wildcard TLS
 
-It needs a **static public IPv4 address, reachable directly**. The DHT speaks
-UDP on 39001 and cannot be proxied, so a NAT that rewrites source addresses will
-not work; a 1:1 NAT is fine, and the setup detects it and asks.
+Pick the node's hostname (for example, `example.com` for a dedicated domain, or `node.example.com` on a shared domain; `www.<node-domain>` is reserved for the node home page) and create two **DNS-only (non-proxied)** `A` records pointing to the server's public IPv4:
 
-**These ports open to the Internet:**
-
-```
-80/tcp     nginx - HTTP redirect and ACME challenges
-443/tcp    nginx - APIs, consoles, and Active Proxy sessions
-9083/tcp   Photon Messaging (MQTTS)
-9090/tcp   Active Proxy control
-39001/udp  DHT - cannot be proxied
-```
-
-If a host firewall is active the setup offers to configure or disable it.
-Provider firewalls are yours to open.
-
-**A domain you control**, with the records below already in place.
-
-#### The name and its DNS records
-
-Choose the name the node will be known by:
-
-- **Domain used only for this node** - use it directly: `example.com`
-- **You also run a website there** - give the node its own name:
-  `node.example.com`, leaving the apex and `www` for the site
-
-Everything else follows from it:
-
-| Name | Serves |
-|---|---|
-| `node.example.com` | APIs, admin dashboard, user portal - and the endpoints announced into the DHT, `mqtts://...:9083` and `tcp://...:9090` |
-| `www.node.example.com` | the node's home page. Reserved - the setup will not accept it as the node's own name |
-| `*.node.example.com` | Active Proxy sessions, one name per connected device |
-
-Two A records, both pointing at the server:
-
-```
+```text
 node.example.com.     A  203.0.113.10
 *.node.example.com.   A  203.0.113.10
 ```
 
-**The wildcard is required.** A session name is not known until the session
-opens, so a name nobody has allocated yet must still resolve here. It also
-answers `www`, which therefore needs no record of its own.
+- The wildcard record (`*`) is required for Active Proxy session hostnames and `www`.
+- Do not place a CDN proxy in front of these records.
+- If your DNS provider does not support wildcard records, pass `--dns powerdns` and delegate the zone via NS/glue records.
+- Wildcard TLS certificates are issued over DNS-01 via a **certbot DNS plugin** (recommended for unattended renewal), **PowerDNS on-host**, or **manual TXT records** (no unattended renewal).
 
-**Leave both on DNS only - no CDN proxy.** The node's own name carries the
-announced endpoints and the per-client rate limiting, and a proxy in front of it
-breaks both. The setup checks the name resolves to the address it detected and
-stops if it does not, so a proxied record fails visibly instead of producing a
-node that looks healthy and answers nothing.
+### Setup Options & Day-2 Operations
 
-If your provider cannot store a `*` record, run `--dns powerdns` instead and
-delegate the zone to the server with NS and glue records at the registrar.
-
-#### The TLS certificate
-
-Every name under the domain must be covered, so it is a wildcard, and Let's
-Encrypt issues those over DNS-01 only. The setup offers:
-
-- **A certbot DNS plugin** (recommended) - renews unattended. Needs an API token
-  for your zone; Cloudflare, Route 53, DigitalOcean, Linode, OVH, deSEC, netcup
-  and seven more are supported.
-- **Manual** - you add a TXT record by hand. **Cannot renew unattended.**
-- **PowerDNS on this host** - answered locally, nothing to configure at a
-  provider.
-
-#### Options
-
-Pass them after the `--` that separates them from bash's own:
+Pass flags to the installer after `--`:
 
 ```bash
-curl -fsSL <url> | sudo bash -s -- --dns powerdns --firewall ufw
+curl -fsSL https://github.com/bosonnetwork/Boson.Releases/releases/latest/download/install-super-node.sh \
+  | sudo bash -s -- --dns powerdns --firewall ufw
 ```
 
-| Option | Effect |
+| Flag | Description |
 |---|---|
-| `--dns powerdns` | run PowerDNS here instead of using your provider's DNS |
-| `--firewall ufw` | configure UFW for exactly the ports above |
-| `--resume` | continue a stopped run, from the step that failed |
-| `--boson-version VER` | install a specific release |
-| `--yes` | accept the confirmations |
+| `--dns <external\|powerdns>` | DNS provider mode (default: `external`) |
+| `--firewall <none\|ufw>` | Host firewall management (default: `none`) |
+| `--resume` | Continue a previously stopped run from the failed step |
+| `--boson-version <ver>` | Install a specific Boson release |
+| `--yes` | Accept confirmation prompts non-interactively |
 
-A failed step stops the run, names itself, and prints the tail of its output.
-Fix the cause and continue with `--resume`; nothing after it has run.
-
-#### Afterwards
-
-The tool stays on the host:
+After installation, manage the node with the installed tool:
 
 ```bash
-sudo /usr/local/lib/boson-setup/setup.sh --update     # update the node to the latest release
-sudo /usr/local/lib/boson-setup/scripts/healthcheck.sh   # verify at any time
-sudo /usr/local/lib/boson-setup/setup.sh --resume        # continue or re-run
+sudo /usr/local/lib/boson-setup/setup.sh --update        # In-place upgrade to latest release
+sudo /usr/local/lib/boson-setup/scripts/healthcheck.sh   # Run full-stack health check
+sudo /usr/local/lib/boson-setup/setup.sh --resume        # Resume an interrupted setup run
 ```
 
-What `--update` does, and the rest of the upgrade paths, are under
-[Upgrading](#upgrading).
+**Important paths:** `/etc/boson/` (node identity keys & config -- **back this up**), `/var/lib/boson/` (node data), `/var/lib/boson-setup/` (answers, logs, update backups), `/usr/local/lib/boson-setup/README.md` (full deployment manual).
 
-Answers, logs and backups live in `/var/lib/boson-setup/`, the node's
-configuration in `/etc/boson/`. Back up `/etc/boson` - it holds the private keys
-that are this node's identity on the network and cannot be regenerated.
+---
 
-The full deployment manual, including doing every step by hand, is
-`/usr/local/lib/boson-setup/README.md`.
+## Standalone Installation (Without a Domain)
+
+Installs Boson directly without nginx, PostgreSQL, or public TLS (uses embedded SQLite and self-signed TLS; clients connect by IP/port).
+
+### Debian / Ubuntu (`.deb`)
+
+Packages bundle their own minimal Java runtime and require no external dependencies.
+
+**Super Node:**
+
+```bash
+sudo apt install ./boson-<version>-$(dpkg --print-architecture).deb
+sudo systemctl status boson
+```
+
+Creates the `boson` system user, generates `/etc/boson/`, starts `boson.service`, and puts `boson-cli`, `boson-director-cli`, and `boson-node` on `PATH`.
+
+**Bootstrap Node (DHT-only):**
+
+```bash
+sudo apt install ./boson-bootstrap-<version>-$(dpkg --print-architecture).deb
+sudo systemctl enable --now boson-bootstrap
+```
+
+### macOS, Linux, and Windows (`.zip`)
+
+```bash
+unzip boson-<version>-<platform>.zip
+cd boson-<version>
+./bin/boson.sh    # Windows: bin\boson.cmd
+```
+
+On first launch, an interactive setup wizard writes `~/.config/boson/director.yaml` and stores node data in `~/.local/share/boson`. CLI launchers (`boson-cli`, `boson-director-cli`, `boson-node`, `.sh` / `.cmd`) are in `bin/`.
 
 ---
 
 ## Upgrading
 
-An upgrade keeps `/etc/boson` and `/var/lib/boson`, does not run the setup wizard
-again, and restarts the node. Two things decide whether it needs more than that,
-and the [CHANGELOG](CHANGELOG.md) says so for each release:
+Always review [CHANGELOG.md](CHANGELOG.md) before upgrading. Database schema migrations run automatically on first startup and are **one-way** -- downgrading requires restoring a pre-upgrade backup.
 
-- **a database migration**, which runs on the first start of the new version and
-  cannot be undone - the older version will not read the migrated database;
-- **a configuration change**, which the Debian packages apply for you and other
-  installations do not.
-
-**3.2.0 does both.** Back up the database before you start, and read
-[Upgrading to 3.2.0](https://docs.bosonnetwork.io/operate-a-node/operations#upgrading-to-320)
-for the ordered steps.
-
-### With the setup tool
-
-A node installed with the public super node setup updates itself, including its
-nginx and database configuration:
+### Setup-Tool-Managed Node (Recommended)
 
 ```bash
+sudo /usr/local/lib/boson-setup/setup.sh --update --check   # Dry-run check (optional)
 sudo /usr/local/lib/boson-setup/setup.sh --update
 sudo /usr/local/lib/boson-setup/scripts/healthcheck.sh
 ```
 
-`--update` updates the tool first, verifies every download against the release
-key, and dumps the database before a release that migrates it - printing the
-restore commands if the update fails after that point. `--backup-database` takes
-the dump on every update, `--no-backup-database` never.
+`--update` upgrades the setup tool first, verifies signatures and checksums, backs up `/etc/boson` and dumps PostgreSQL when a schema migration is detected (override with `--backup-database` or `--no-backup-database`), upgrades the package, verifies health, and rolls back automatically if a pre-migration step fails. Check any post-upgrade firewall notices printed at the end (for example, opening TURN ports when upgrading from before `3.2.1`).
 
-### With the DEB package
+### Standalone DEB Installation
 
 ```bash
-# Back up the database first when the release migrates it
-sudo cp /var/lib/boson/director.db /var/lib/boson/director.db.pre-<version>
-# ...or, on PostgreSQL
-sudo -u postgres pg_dump boson > boson-pre-<version>.sql
+# 1. Stop Boson and back up configuration and data
+sudo systemctl stop boson
+sudo tar -czf boson-backup-pre-<version>.tar.gz /etc/boson /var/lib/boson
+# If using PostgreSQL, dump the database as well:
+# sudo -u postgres pg_dump -Fc boson > boson-pre-<version>.dump
 
+# 2. Install the new package
 sudo apt install ./boson-<version>-$(dpkg --print-architecture).deb
+
+# 3. Verify service status and running version
 sudo systemctl status boson
-curl -k https://localhost:9000/api/v1/client/node
+curl -sk https://localhost:9000/api/v1/client/node   # Use http:// if behind a TLS proxy
 ```
 
-The status response carries the running `version`. The package brings
-`/etc/boson/director.yaml` forward when a release changed its format.
+DEB upgrades verify that `boson.service` is stopped and automatically apply staged configuration migrations from the previously configured version. If a newly added service encounters a port conflict (such as TURN on upgrade from before `3.2.1`), its file is saved with a `.yaml.disabled` suffix so the upgrade still succeeds.
 
-The bootstrap node is the same:
+Bootstrap node upgrade:
 
 ```bash
 sudo apt install ./boson-bootstrap-<version>-$(dpkg --print-architecture).deb
 ```
 
-### With the ZIP archive
+### ZIP Archive
 
-The configuration and data live outside the extracted directory, in
-`~/.config/boson` and `~/.local/share/boson`, so they survive. Extracting an
-archive runs no installer, though, so nothing migrates the configuration for
-you: stop the node, extract the new archive, and migrate it yourself with the
-version that last configured the node.
+Configuration (`~/.config/boson`) and data (`~/.local/share/boson`) live outside the archive directory. Stop the node, back up both directories, extract the new archive, run configuration migration with the previously installed version, and restart:
 
 ```bash
 unzip boson-<version>-<platform>.zip
 cd boson-<version>
 ./jre/bin/java -cp "lib/*" io.bosonnetwork.director.Setup \
-    --home . --migrate --from-version <installed-version>
+  --home . --migrate --from-version <installed-version>
 ./bin/boson.sh
 ```
 
-### If it does not come up
+### Troubleshooting Failed Upgrades
 
-Check the migration before anything else:
+Inspect service and migration logs first:
 
 ```bash
 sudo journalctl -u boson -n 100 --no-pager
 ```
 
-The way back from a failed migration is to restore the dump and reinstall the
-previous package - not to edit the schema.
+To roll back after a database migration has run, restore your pre-upgrade database dump and `/etc/boson` backup, then reinstall the previous package version.
 
 ---
 
-## Packages
+## Release Artifacts & Verification
 
-Each release provides the following artifacts:
+### Packages
 
-| Platform | Architecture | Package | Type |
-|---|---|---|---|
-| macOS | Apple Silicon (arm64) | `boson-<v>-macos-aarch64.zip` | ZIP |
-| Linux | x86_64 | `boson-<v>-linux-x86_64.zip` | ZIP |
-| Linux | x86_64 | `boson-<v>-amd64.deb` | Debian package - super node |
-| Linux | x86_64 | `boson-bootstrap-<v>-amd64.deb` | Debian package - DHT bootstrap node |
-| Linux | aarch64 (arm64) | `boson-<v>-linux-aarch64.zip` | ZIP |
-| Linux | aarch64 (arm64) | `boson-<v>-arm64.deb` | Debian package - super node |
-| Linux | aarch64 (arm64) | `boson-bootstrap-<v>-arm64.deb` | Debian package - DHT bootstrap node |
-| Windows | x86_64 | `boson-<v>-windows-x86_64.zip` | ZIP |
-| Any | any | `boson-<v>-any.zip` | Portable ZIP, no bundled Java runtime |
+| Artifact | Platform / Arch | Notes |
+|---|---|---|
+| `boson-<v>-amd64.deb` / `boson-<v>-arm64.deb` | Linux `x86_64` / `arm64` | Super node DEB (bundled JRE + `coturn`) |
+| `boson-bootstrap-<v>-amd64.deb` / `arm64.deb` | Linux `x86_64` / `arm64` | Lightweight DHT-only bootstrap node DEB |
+| `boson-<v>-linux-x86_64.zip` / `linux-aarch64.zip` | Linux `x86_64` / `arm64` | Super node ZIP (bundled JRE + `coturn`) |
+| `boson-<v>-macos-aarch64.zip` | macOS Apple Silicon | Super node ZIP (bundled JRE + `coturn`) |
+| `boson-<v>-windows-x86_64.zip` | Windows `x86_64` | Super node ZIP (bundled JRE; no `coturn`) |
+| `boson-<v>-any.zip` | Any OS / Arch | Portable JAR bundle; requires Java 17+ (no bundled JRE or `coturn`, NIO transport) |
+| `install-super-node.sh`, `super-node-setup.tar.gz` | Ubuntu / Debian | Production super node setup & update tool |
+| `SHA256SUMS`, `SHA256SUMS.asc` | All | GPG-signed SHA-256 manifest covering all assets |
 
-The platform ZIP archives and the Debian packages include a minimal Java runtime
-built with `jlink` - no system Java installation is required.
+### Verifying Downloads
 
-The **portable** ZIP bundles no runtime and needs Java 17 or later on the host.
-It is the archive to use on a platform with no package of its own, such as macOS
-on Intel.
-
-The **bootstrap** DEB is a lightweight DHT-only package for running seed/discovery nodes without any layer-2 services.
-
-Each release also carries the super node setup tool - `install-super-node.sh`
-and `super-node-setup.tar.gz` - and the checksums below.
-
-### Verifying a download
-
-Every release from 3.1.2 on publishes `SHA256SUMS`, covering all of its assets,
-and `SHA256SUMS.asc`, a signature over it by the project's release key:
+Every release from `3.1.2` onward is signed with the BosonNetwork release key (published on `keys.openpgp.org` and `bosonnetwork.io`):
 
 ```text
 BosonNetwork <support@bosonnetwork.io>
 5A01 2C93 0EED B923 B7AB  4739 A13B 99C0 C4AA 495A
 ```
 
-The key is on keys.openpgp.org, and its fingerprint is published on
-bosonnetwork.io. Verify the signature, then the package:
+Verify the signature and asset checksum before installing:
 
 ```bash
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 5A012C930EEDB923B7AB4739A13B99C0C4AA495A
-gpg --verify SHA256SUMS.asc SHA256SUMS            # "Good signature from BosonNetwork"
-sha256sum --check --ignore-missing SHA256SUMS     # boson-<v>-amd64.deb: OK
+gpg --verify SHA256SUMS.asc SHA256SUMS
+sha256sum --check --ignore-missing SHA256SUMS
 ```
 
-The super node setup tool does this for you, on installation and on every
-update, with a copy of the key it carries.
+The super node setup tool performs this verification automatically on install and `--update`.
 
 ---
 
-## Source
+## For Developers & Contributors
 
-The Boson Network codebase is being progressively open-sourced:
+### Java SDK (Maven Central)
 
-**Already open source:**
+Boson Java libraries are published under group ID `io.bosonnetwork` with `boson-dependencies` as the Maven BOM:
 
-- [Boson.Core](https://github.com/bosonnetwork/Boson.Core) - common APIs, and the Kademlia DHT node
-- [Boson.Tools](https://github.com/bosonnetwork/Boson.Tools) - the `boson-cli`, `boson-director-cli` and `boson-node` command line tools
-- Client libraries - [WebGateway (Higgs)](https://github.com/bosonnetwork/Boson.WebGateway.Client), [Messaging](https://github.com/bosonnetwork/Boson.Messaging.Client), [Ion Store](https://github.com/bosonnetwork/Boson.IonStore.Client), [Active Proxy](https://github.com/bosonnetwork/Boson.ActiveProxy.Client), [Director](https://github.com/bosonnetwork/Boson.Director.Client)
+- **Core:** `boson-api`, `boson-dht`
+- **Clients:** `boson-higgs` (WebGateway / Light Node), `boson-director-client`, `boson-messaging-client`, `boson-ion-store-client`, `boson-active-proxy-client`
 
-**Not yet open source** (planned):
+See the [Java SDK documentation](https://docs.bosonnetwork.io) for dependency snippets and API guides.
 
-- Layer-2 services - WebGateway, Photon Messaging, Ion Store, Active Proxy
-- Boson Director - super node supervisor
+### Source Repositories
+
+Boson Network is being open-sourced progressively:
+
+- **Core & CLI:** [Boson.Core](https://github.com/bosonnetwork/Boson.Core), [Boson.Tools](https://github.com/bosonnetwork/Boson.Tools)
+- **Client Libraries:** [Boson.WebGateway.Client](https://github.com/bosonnetwork/Boson.WebGateway.Client), [Boson.Messaging.Client](https://github.com/bosonnetwork/Boson.Messaging.Client), [Boson.IonStore.Client](https://github.com/bosonnetwork/Boson.IonStore.Client), [Boson.ActiveProxy.Client](https://github.com/bosonnetwork/Boson.ActiveProxy.Client), [Boson.Director.Client](https://github.com/bosonnetwork/Boson.Director.Client)
+- **Apps:** [BosonIdentity](https://github.com/bosonnetwork/BosonIdentity), [PhotonMessenger](https://github.com/bosonnetwork/PhotonMessenger)
+- **Planned open-source:** Boson Director and Layer-2 services (WebGateway, Photon Messaging, Ion Store, Active Proxy, TURN Relay)
 
 ---
 
-## License
+## License & Support
 
-This project is licensed under the [MIT License](LICENSE).
-
-For questions or support, contact the Boson Network team at [support@bosonnetwork.io](mailto:support@bosonnetwork.io).
+Licensed under the [MIT License](LICENSE). For questions, bug reports, or release support, contact [support@bosonnetwork.io](mailto:support@bosonnetwork.io) or open an issue on the relevant repository.
