@@ -237,18 +237,23 @@ Every release from `3.1.2` onward is signed with the BosonNetwork release key (p
 
 ```text
 BosonNetwork <support@bosonnetwork.io>
-5A01 2C93 0EED B923 B7AB  4739 A13B 99C0 C4AA 495A
+103C B1D4 C51D E544 61C2  4198 28E1 4DED 565C 5BDE
 ```
 
 Verify the signature and asset checksum before installing:
 
 ```bash
-gpg --keyserver hkps://keys.openpgp.org --recv-keys 5A012C930EEDB923B7AB4739A13B99C0C4AA495A
+gpg --keyserver hkps://keys.openpgp.org --recv-keys 103CB1D4C51DE54461C2419828E14DED565C5BDE
 gpg --verify SHA256SUMS.asc SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 ```
 
-The super node setup tool performs this verification automatically on install and `--update`.
+The super node setup tool performs this verification automatically on install and `--update`. Existing nodes whose installed setup tool still pins the deprecated key must run the new installer once with `--update` to pick up the rotated key:
+
+```bash
+curl -fsSL https://github.com/bosonnetwork/Boson.Releases/releases/latest/download/install-super-node.sh \
+  | sudo bash -s -- --update
+```
 
 ---
 
